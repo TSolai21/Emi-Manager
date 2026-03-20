@@ -236,6 +236,15 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
     aadhaarPhoto: '',
   });
 
+  const isStep1Valid = formData.name.trim().length >= 2 && formData.phone.replace(/\D/g, '').length === 10;
+  
+  const isStep2Valid = 
+    formData.productName.trim().length >= 2 && 
+    parseFloat(formData.totalPrice || '0') > 0 && 
+    parseFloat(formData.totalPrice || '0') >= parseFloat(formData.downPayment || '0') &&
+    parseFloat(formData.downPayment || '0') >= 0 &&
+    !!formData.firstDueDate;
+
   const emiPerMonth = useMemo(() => {
     const total = parseFloat(formData.totalPrice) || 0;
     const down = parseFloat(formData.downPayment) || 0;
@@ -276,7 +285,7 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
     const newCustomer: Customer = {
       id: Math.random().toString(36).substr(2, 9),
       name: formData.name,
-      phone: formData.phone,
+      phone: formData.phone.replace(/\D/g, ''),
       address: formData.address,
       aadhaarPhoto: formData.aadhaarPhoto,
       productName: formData.productName,
@@ -330,13 +339,23 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
                 </div>
                 <div className="flex-1 px-3">
                   <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">{t.phoneNumber}</label>
-                  <input 
-                    type="tel" 
-                    placeholder={t.enterPhone}
-                    className="w-full bg-transparent text-zinc-900 font-semibold outline-none placeholder:text-zinc-300 placeholder:font-normal mt-0.5"
-                    value={formData.phone}
-                    onChange={e => setFormData({...formData, phone: e.target.value})}
-                  />
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="text-zinc-500 font-semibold">+91</span>
+                    <input 
+                      type="tel" 
+                      placeholder="98765 43210"
+                      className="w-full bg-transparent text-zinc-900 font-semibold outline-none placeholder:text-zinc-300 placeholder:font-normal tracking-wide"
+                      value={formData.phone}
+                      onChange={e => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        let formatted = val;
+                        if (val.length > 5) {
+                          formatted = `${val.slice(0, 5)} ${val.slice(5)}`;
+                        }
+                        setFormData({...formData, phone: formatted});
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -392,7 +411,7 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
             <button 
               id="next-step-btn"
               onClick={() => setStep(2)}
-              disabled={!formData.name || !formData.phone}
+              disabled={!isStep1Valid}
               className="w-full bg-zinc-900 text-white p-4 rounded-2xl font-bold text-lg disabled:opacity-50 active:scale-95 transition-transform mt-4 shadow-xl shadow-zinc-900/10"
             >
               {t.next}
@@ -477,7 +496,7 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
               <button 
                 id="save-customer-btn"
                 onClick={handleSave}
-                disabled={!formData.productName || !formData.totalPrice}
+                disabled={!isStep2Valid}
                 className="flex-[2] bg-zinc-900 text-white p-4 rounded-xl font-bold text-lg disabled:opacity-50 active:scale-95 transition-transform"
               >
                 {t.saveCustomer}
@@ -510,11 +529,11 @@ function CustomerDetails({ customer, onBack }: { customer: Customer, onBack: () 
             <div>
               <h2 className="text-2xl font-bold text-zinc-900">{customer.name}</h2>
               <p className="text-zinc-500 flex items-center gap-1 mt-1">
-                <Phone size={14} /> {customer.phone}
+                <Phone size={14} /> +91 {customer.phone.replace(/(\d{5})(\d{5})/, '$1 $2')}
               </p>
             </div>
             <a 
-              href={`tel:${customer.phone}`}
+              href={`tel:+91${customer.phone.replace(/\D/g, '')}`}
               className="bg-zinc-900 text-white p-3 rounded-full active:scale-90 transition-transform"
             >
               <Phone size={20} />
@@ -618,7 +637,7 @@ function TodayDue({ onBack, onSelectCustomer }: { onBack: () => void, onSelectCu
     // Keep reminder in english primarily or we can mix if needed, but the prompt says 
     // add bilingual tamil and english so we'll leave reminder as is since they need to send it explicitly via WA.
     const message = `Hi ${customer.name}, your EMI of ${formatCurrency(customer.emiAmount)} for ${customer.productName} is due. Please pay soon.`;
-    const url = `https://wa.me/${customer.phone}?text=${encodeURIComponent(message)}`;
+    const url = `https://wa.me/91${customer.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
   };
 
