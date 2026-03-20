@@ -13,9 +13,11 @@ import {
   Search,
   MessageSquare,
   FileSpreadsheet,
+  Globe,
+  User,
+  MapPin,
   Download,
-  Upload,
-  Globe
+  Upload
 } from 'lucide-react';
 import { AppProvider, useApp, Customer, EMI } from './context';
 import { translations } from './translations';
@@ -231,6 +233,7 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
     downPayment: '',
     months: '12',
     firstDueDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
+    aadhaarPhoto: '',
   });
 
   const emiPerMonth = useMemo(() => {
@@ -275,6 +278,7 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
       name: formData.name,
       phone: formData.phone,
       address: formData.address,
+      aadhaarPhoto: formData.aadhaarPhoto,
       productName: formData.productName,
       totalPrice: total,
       downPayment: down,
@@ -302,49 +306,94 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
 
       <div className="p-4 space-y-6">
         {step === 1 ? (
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-600">{t.fullName}</label>
-              <input 
-                type="text" 
-                placeholder={t.enterName}
-                className="w-full p-4 rounded-xl bg-white border border-zinc-200 focus:ring-2 focus:ring-zinc-900 outline-none"
-                value={formData.name}
-                onChange={e => setFormData({...formData, name: e.target.value})}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-600">{t.phoneNumber}</label>
-              <input 
-                type="tel" 
-                placeholder={t.enterPhone}
-                className="w-full p-4 rounded-xl bg-white border border-zinc-200 focus:ring-2 focus:ring-zinc-900 outline-none"
-                value={formData.phone}
-                onChange={e => setFormData({...formData, phone: e.target.value})}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-600">{t.address}</label>
-              <textarea 
-                placeholder={t.enterFullAddress}
-                rows={3}
-                className="w-full p-4 rounded-xl bg-white border border-zinc-200 focus:ring-2 focus:ring-zinc-900 outline-none"
-                value={formData.address}
-                onChange={e => setFormData({...formData, address: e.target.value})}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-600">{t.aadhaarPhoto}</label>
-              <div className="w-full p-8 rounded-xl bg-zinc-100 border-2 border-dashed border-zinc-300 flex flex-col items-center justify-center text-zinc-400 cursor-pointer">
-                <Camera size={32} />
-                <span className="text-sm mt-2">{t.clickToTake}</span>
+          <div className="space-y-6">
+            <div className="bg-white rounded-3xl p-2 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-zinc-100">
+              <div className="relative flex items-center p-2 border-b border-zinc-100 focus-within:bg-zinc-50/50 transition-colors rounded-t-2xl">
+                <div className="w-11 h-11 flex items-center justify-center bg-blue-50/50 text-blue-500 rounded-xl shrink-0">
+                  <User size={20} />
+                </div>
+                <div className="flex-1 px-3">
+                  <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">{t.fullName}</label>
+                  <input 
+                    type="text" 
+                    placeholder={t.enterName}
+                    className="w-full bg-transparent text-zinc-900 font-semibold outline-none placeholder:text-zinc-300 placeholder:font-normal mt-0.5"
+                    value={formData.name}
+                    onChange={e => setFormData({...formData, name: e.target.value})}
+                  />
+                </div>
+              </div>
+              
+              <div className="relative flex items-center p-2 border-b border-zinc-100 focus-within:bg-zinc-50/50 transition-colors">
+                <div className="w-11 h-11 flex items-center justify-center bg-emerald-50/50 text-emerald-500 rounded-xl shrink-0">
+                  <Phone size={20} />
+                </div>
+                <div className="flex-1 px-3">
+                  <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">{t.phoneNumber}</label>
+                  <input 
+                    type="tel" 
+                    placeholder={t.enterPhone}
+                    className="w-full bg-transparent text-zinc-900 font-semibold outline-none placeholder:text-zinc-300 placeholder:font-normal mt-0.5"
+                    value={formData.phone}
+                    onChange={e => setFormData({...formData, phone: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="relative flex items-start p-2 focus-within:bg-zinc-50/50 transition-colors rounded-b-2xl">
+                <div className="w-11 h-11 flex items-center justify-center bg-orange-50/50 text-orange-500 rounded-xl shrink-0 mt-1">
+                  <MapPin size={20} />
+                </div>
+                <div className="flex-1 px-3 py-1">
+                  <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">{t.address}</label>
+                  <textarea 
+                    placeholder={t.enterFullAddress}
+                    rows={2}
+                    className="w-full bg-transparent text-zinc-900 font-semibold outline-none placeholder:text-zinc-300 placeholder:font-normal mt-0.5 resize-none"
+                    value={formData.address}
+                    onChange={e => setFormData({...formData, address: e.target.value})}
+                  />
+                </div>
               </div>
             </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider pl-2">{t.aadhaarPhoto}</label>
+              <label className="block w-full h-48 p-8 rounded-3xl bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-zinc-100 flex flex-col items-center justify-center text-zinc-400 cursor-pointer relative overflow-hidden active:scale-[0.98] transition-all">
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  capture="environment" 
+                  className="hidden" 
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => {
+                        setFormData(prev => ({...prev, aadhaarPhoto: reader.result as string}));
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                />
+                {formData.aadhaarPhoto ? (
+                  <img src={formData.aadhaarPhoto} alt="Aadhaar" className="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <>
+                    <div className="w-16 h-16 bg-zinc-50 rounded-full flex items-center justify-center text-zinc-400 mb-3 shadow-[0_4px_10px_rgb(0,0,0,0.02)]">
+                      <Camera size={28} />
+                    </div>
+                    <span className="text-sm font-semibold text-zinc-500">{t.clickToTake}</span>
+                  </>
+                )}
+              </label>
+            </div>
+
             <button 
               id="next-step-btn"
               onClick={() => setStep(2)}
               disabled={!formData.name || !formData.phone}
-              className="w-full bg-zinc-900 text-white p-4 rounded-xl font-bold text-lg disabled:opacity-50 active:scale-95 transition-transform"
+              className="w-full bg-zinc-900 text-white p-4 rounded-2xl font-bold text-lg disabled:opacity-50 active:scale-95 transition-transform mt-4 shadow-xl shadow-zinc-900/10"
             >
               {t.next}
             </button>
@@ -490,6 +539,12 @@ function CustomerDetails({ customer, onBack }: { customer: Customer, onBack: () 
               <p className="font-semibold text-zinc-800">{formatCurrency(customer.totalPrice)}</p>
             </div>
           </div>
+          {customer.aadhaarPhoto && (
+            <div className="pt-4 border-t border-zinc-100">
+              <p className="text-xs text-zinc-400 uppercase font-medium mb-2">{t.aadhaarPhoto}</p>
+              <img src={customer.aadhaarPhoto} alt="Aadhaar" className="w-full h-48 object-cover rounded-xl border border-zinc-200 block" />
+            </div>
+          )}
         </div>
 
         {/* EMI List */}
@@ -727,11 +782,16 @@ function AllCustomers({ onBack, onSelectCustomer }: { onBack: () => void, onSele
 }
 
 function AppContent() {
+  const { customers } = useApp();
   const [screen, setScreen] = useState<Screen>('DASHBOARD');
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+
+  const selectedCustomer = useMemo(() => {
+    return customers.find(c => c.id === selectedCustomerId) || null;
+  }, [customers, selectedCustomerId]);
 
   const navigate = (s: Screen, data?: any) => {
-    if (data) setSelectedCustomer(data);
+    if (data) setSelectedCustomerId(data.id);
     setScreen(s);
   };
 
@@ -771,7 +831,7 @@ function AppContent() {
     <div className="max-w-md mx-auto bg-zinc-50 min-h-screen font-sans selection:bg-zinc-900 selection:text-white">
       <AnimatePresence mode="wait">
         <motion.div
-          key={screen + (selectedCustomer?.id || '')}
+          key={screen + (selectedCustomerId || '')}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -20 }}
