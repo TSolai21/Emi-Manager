@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Plus, 
@@ -11,9 +11,14 @@ import {
   ArrowLeft,
   Camera,
   Search,
-  MessageSquare
+  MessageSquare,
+  FileSpreadsheet,
+  Download,
+  Upload,
+  Globe
 } from 'lucide-react';
 import { AppProvider, useApp, Customer, EMI } from './context';
+import { translations } from './translations';
 
 type Screen = 'DASHBOARD' | 'ADD_CUSTOMER' | 'CUSTOMER_DETAILS' | 'TODAY_DUE' | 'ALL_CUSTOMERS';
 
@@ -26,28 +31,106 @@ function formatCurrency(amount: number) {
 }
 
 function Dashboard({ onNavigate }: { onNavigate: (screen: Screen, data?: any) => void }) {
-  const { totalGiven, totalCollected, totalPending } = useApp();
+  const { customers, totalGiven, totalCollected, totalPending, language, setLanguage } = useApp();
+  const t = translations[language];
+
+  const exportToCSV = () => {
+    const paymentRows = [];
+    paymentRows.push(['Customer Name', 'Phone', 'Product', 'EMI Month', 'Due Date', 'EMI Amount', 'Status']);
+    
+    const today = new Date();
+
+    customers.forEach(c => {
+      const currentEmi = c.emis.find(e => {
+        const dueDate = new Date(e.dueDate);
+        return !e.isPaid && 
+               dueDate.getMonth() === today.getMonth() && 
+               dueDate.getFullYear() === today.getFullYear();
+      });
+
+      if (currentEmi) {
+         paymentRows.push([
+           c.name,
+           c.phone,
+           c.productName,
+           currentEmi.month,
+           new Date(currentEmi.dueDate).toLocaleDateString(),
+           currentEmi.amount,
+           'Pending'
+         ]);
+      }
+    });
+
+    const csvContent = paymentRows.map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `today_due_customers_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const backupData = () => {
+    const dataStr = JSON.stringify(customers, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `emi_manager_backup_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+  };
+
+  const handleRestore = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const imported = JSON.parse(e.target?.result as string);
+          if (Array.isArray(imported)) {
+            localStorage.setItem('emi_manager_customers', JSON.stringify(imported));
+            window.location.reload();
+          } else {
+            alert("Invalid backup file format!");
+          }
+        } catch (err) {
+          alert("Error parsing backup file!");
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
 
   return (
     <div className="space-y-6 p-4">
       {/* Stats Section */}
       <div className="bg-zinc-900 text-white rounded-3xl p-6 shadow-xl border border-white/5">
-        <div className="grid grid-cols-1 gap-6">
+        <div className="flex justify-between items-start mb-6">
           <div>
-            <p className="text-zinc-400 text-sm font-medium uppercase tracking-wider">Total Given</p>
+            <p className="text-zinc-400 text-sm font-medium uppercase tracking-wider">{t.totalGiven}</p>
             <p className="text-4xl font-bold mt-1">{formatCurrency(totalGiven)}</p>
           </div>
+          <button
+            onClick={() => setLanguage(language === 'en' ? 'ta' : 'en')}
+            className="flex items-center gap-2 bg-zinc-800 px-3 py-1.5 rounded-full border border-white/10 text-xs font-bold text-zinc-300 active:scale-95 transition-transform"
+          >
+            <Globe size={14} />
+            {language === 'en' ? 'தமிழ்' : 'EN'}
+          </button>
+        </div>
           <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/10">
             <div>
-              <p className="text-zinc-500 text-xs font-medium uppercase">Collected</p>
+              <p className="text-zinc-500 text-xs font-medium uppercase">{t.collected}</p>
               <p className="text-xl font-semibold text-emerald-400">{formatCurrency(totalCollected)}</p>
             </div>
             <div>
-              <p className="text-zinc-500 text-xs font-medium uppercase">Pending</p>
+              <p className="text-zinc-500 text-xs font-medium uppercase">{t.pending}</p>
               <p className="text-xl font-semibold text-orange-400">{formatCurrency(totalPending)}</p>
             </div>
           </div>
-        </div>
       </div>
 
       {/* Action Buttons */}
@@ -61,7 +144,7 @@ function Dashboard({ onNavigate }: { onNavigate: (screen: Screen, data?: any) =>
             <div className="bg-emerald-100 p-3 rounded-xl text-emerald-600">
               <Plus size={24} />
             </div>
-            <span className="text-lg font-semibold text-zinc-800">Add Customer</span>
+            <span className="text-lg font-semibold text-zinc-800">{t.addCustomer}</span>
           </div>
           <ChevronRight className="text-zinc-300" />
         </button>
@@ -75,7 +158,7 @@ function Dashboard({ onNavigate }: { onNavigate: (screen: Screen, data?: any) =>
             <div className="bg-orange-100 p-3 rounded-xl text-orange-600">
               <Calendar size={24} />
             </div>
-            <span className="text-lg font-semibold text-zinc-800">Today Due</span>
+            <span className="text-lg font-semibold text-zinc-800">{t.todayDue}</span>
           </div>
           <ChevronRight className="text-zinc-300" />
         </button>
@@ -89,17 +172,55 @@ function Dashboard({ onNavigate }: { onNavigate: (screen: Screen, data?: any) =>
             <div className="bg-indigo-100 p-3 rounded-xl text-indigo-600">
               <Users size={24} />
             </div>
-            <span className="text-lg font-semibold text-zinc-800">All Customers</span>
+            <span className="text-lg font-semibold text-zinc-800">{t.allCustomers}</span>
           </div>
           <ChevronRight className="text-zinc-300" />
         </button>
       </div>
+
+      {/* Data Management Section */}
+      {false && (
+      <div className="pt-4 border-t border-zinc-200">
+        <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider mb-4 px-2">Data Management</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <button 
+            onClick={exportToCSV}
+            className="flex flex-col items-center justify-center p-4 bg-blue-50 text-blue-700 rounded-2xl border border-blue-100 active:scale-95 transition-transform gap-2"
+          >
+            <FileSpreadsheet size={24} />
+            <span className="text-sm font-semibold">Export CSV</span>
+          </button>
+          
+          <button 
+            onClick={backupData}
+            className="flex flex-col items-center justify-center p-4 bg-emerald-50 text-emerald-700 rounded-2xl border border-emerald-100 active:scale-95 transition-transform gap-2"
+          >
+            <Download size={24} />
+            <span className="text-sm font-semibold">Backup JSON</span>
+          </button>
+          
+          <div className="col-span-2">
+            <label className="flex items-center justify-center p-4 bg-zinc-800 text-white rounded-2xl border border-zinc-700 active:scale-95 transition-transform gap-2 cursor-pointer">
+              <Upload size={20} />
+              <span className="text-sm font-semibold">Restore Backup</span>
+              <input 
+                 type="file" 
+                 accept=".json" 
+                 className="hidden" 
+                 onChange={handleRestore} 
+              />
+            </label>
+          </div>
+        </div>
+      </div>
+      )}
     </div>
   );
 }
 
 function AddCustomer({ onBack }: { onBack: () => void }) {
-  const { addCustomer } = useApp();
+  const { addCustomer, language } = useApp();
+  const t = translations[language];
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     name: '',
@@ -109,13 +230,14 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
     totalPrice: '',
     downPayment: '',
     months: '12',
+    firstDueDate: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
   });
 
   const emiPerMonth = useMemo(() => {
     const total = parseFloat(formData.totalPrice) || 0;
     const down = parseFloat(formData.downPayment) || 0;
     const months = parseInt(formData.months) || 1;
-    return Math.round((total - down) / months);
+    return Number(((total - down) / months).toFixed(2));
   }, [formData.totalPrice, formData.downPayment, formData.months]);
 
   const handleSave = () => {
@@ -123,14 +245,26 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
     const down = parseFloat(formData.downPayment);
     const months = parseInt(formData.months);
     const emiAmount = emiPerMonth;
+    const principal = total - down;
+    
+    let accumulated = 0;
+    const baseDate = formData.firstDueDate ? new Date(formData.firstDueDate) : new Date(new Date().setMonth(new Date().getMonth() + 1));
     
     const emis: EMI[] = Array.from({ length: months }).map((_, i) => {
-      const date = new Date();
-      date.setMonth(date.getMonth() + i + 1);
+      const date = new Date(baseDate);
+      date.setMonth(date.getMonth() + i);
+      
+      let currentEmiAmount = emiAmount;
+      if (i === months - 1) {
+        currentEmiAmount = Number((principal - accumulated).toFixed(2));
+      } else {
+        accumulated += currentEmiAmount;
+      }
+
       return {
         id: Math.random().toString(36).substr(2, 9),
         month: date.toLocaleString('default', { month: 'short', year: 'numeric' }),
-        amount: emiAmount,
+        amount: currentEmiAmount,
         isPaid: false,
         dueDate: date.toISOString(),
       };
@@ -146,7 +280,7 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
       downPayment: down,
       months: months,
       emiAmount: emiAmount,
-      remainingAmount: total - down,
+      remainingAmount: Number((total - down).toFixed(2)),
       emis: emis,
       createdAt: new Date().toISOString(),
     };
@@ -162,7 +296,7 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
           <ArrowLeft size={24} />
         </button>
         <h1 className="text-xl font-bold text-zinc-900">
-          {step === 1 ? 'Customer Info' : 'Product & EMI'}
+          {step === 1 ? t.customerInfo : t.productAndEmi}
         </h1>
       </div>
 
@@ -170,29 +304,29 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
         {step === 1 ? (
           <div className="space-y-4">
             <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-600">Full Name</label>
+              <label className="text-sm font-medium text-zinc-600">{t.fullName}</label>
               <input 
                 type="text" 
-                placeholder="Enter name"
+                placeholder={t.enterName}
                 className="w-full p-4 rounded-xl bg-white border border-zinc-200 focus:ring-2 focus:ring-zinc-900 outline-none"
                 value={formData.name}
                 onChange={e => setFormData({...formData, name: e.target.value})}
               />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-600">Phone Number</label>
+              <label className="text-sm font-medium text-zinc-600">{t.phoneNumber}</label>
               <input 
                 type="tel" 
-                placeholder="Enter 10 digit number"
+                placeholder={t.enterPhone}
                 className="w-full p-4 rounded-xl bg-white border border-zinc-200 focus:ring-2 focus:ring-zinc-900 outline-none"
                 value={formData.phone}
                 onChange={e => setFormData({...formData, phone: e.target.value})}
               />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-600">Address</label>
+              <label className="text-sm font-medium text-zinc-600">{t.address}</label>
               <textarea 
-                placeholder="Enter full address"
+                placeholder={t.enterFullAddress}
                 rows={3}
                 className="w-full p-4 rounded-xl bg-white border border-zinc-200 focus:ring-2 focus:ring-zinc-900 outline-none"
                 value={formData.address}
@@ -200,10 +334,10 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-600">Aadhaar Photo (Optional)</label>
+              <label className="text-sm font-medium text-zinc-600">{t.aadhaarPhoto}</label>
               <div className="w-full p-8 rounded-xl bg-zinc-100 border-2 border-dashed border-zinc-300 flex flex-col items-center justify-center text-zinc-400 cursor-pointer">
                 <Camera size={32} />
-                <span className="text-sm mt-2">Click to take photo</span>
+                <span className="text-sm mt-2">{t.clickToTake}</span>
               </div>
             </div>
             <button 
@@ -212,16 +346,16 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
               disabled={!formData.name || !formData.phone}
               className="w-full bg-zinc-900 text-white p-4 rounded-xl font-bold text-lg disabled:opacity-50 active:scale-95 transition-transform"
             >
-              Next
+              {t.next}
             </button>
           </div>
         ) : (
           <div className="space-y-4">
             <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-600">Product Name</label>
+              <label className="text-sm font-medium text-zinc-600">{t.productName}</label>
               <input 
                 type="text" 
-                placeholder="e.g. Bed, Table, Sofa"
+                placeholder={t.enterProduct}
                 className="w-full p-4 rounded-xl bg-white border border-zinc-200 focus:ring-2 focus:ring-zinc-900 outline-none"
                 value={formData.productName}
                 onChange={e => setFormData({...formData, productName: e.target.value})}
@@ -229,7 +363,7 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-sm font-medium text-zinc-600">Total Price</label>
+                <label className="text-sm font-medium text-zinc-600">{t.totalPrice}</label>
                 <input 
                   type="number" 
                   placeholder="₹"
@@ -239,7 +373,7 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-sm font-medium text-zinc-600">Down Payment</label>
+                <label className="text-sm font-medium text-zinc-600">{t.downPayment}</label>
                 <input 
                   type="number" 
                   placeholder="₹"
@@ -249,27 +383,38 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
                 />
               </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-zinc-600">Tenure (Months)</label>
-              <select 
-                className="w-full p-4 rounded-xl bg-white border border-zinc-200 focus:ring-2 focus:ring-zinc-900 outline-none"
-                value={formData.months}
-                onChange={e => setFormData({...formData, months: e.target.value})}
-              >
-                {[3, 6, 9, 12, 18, 24].map(m => (
-                  <option key={m} value={m}>{m} Months</option>
-                ))}
-              </select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-zinc-600">{t.tenure}</label>
+                <select 
+                  className="w-full p-4 rounded-xl bg-white border border-zinc-200 focus:ring-2 focus:ring-zinc-900 outline-none"
+                  value={formData.months}
+                  onChange={e => setFormData({...formData, months: e.target.value})}
+                >
+                  {[3, 6, 9, 12, 18, 24].map(m => (
+                    <option key={m} value={m}>{m} Months</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-zinc-600">{t.firstDueDate}</label>
+                <input 
+                  type="date" 
+                  className="w-full p-4 rounded-xl bg-white border border-zinc-200 focus:ring-2 focus:ring-zinc-900 outline-none"
+                  value={formData.firstDueDate}
+                  onChange={e => setFormData({...formData, firstDueDate: e.target.value})}
+                />
+              </div>
             </div>
 
             <div className="bg-zinc-900 text-white p-6 rounded-2xl space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-zinc-400">Monthly EMI</span>
+                <span className="text-zinc-400">{t.monthlyEmi}</span>
                 <span className="text-2xl font-bold">{formatCurrency(emiPerMonth)}</span>
               </div>
               <div className="flex justify-between items-center pt-3 border-t border-white/10">
-                <span className="text-zinc-400">Remaining Amount</span>
-                <span className="font-semibold">{formatCurrency(parseFloat(formData.totalPrice || '0') - parseFloat(formData.downPayment || '0'))}</span>
+                <span className="text-zinc-400">{t.remainingAmount}</span>
+                <span className="font-semibold">{formatCurrency(Number((parseFloat(formData.totalPrice || '0') - parseFloat(formData.downPayment || '0')).toFixed(2)))}</span>
               </div>
             </div>
 
@@ -278,7 +423,7 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
                 onClick={() => setStep(1)}
                 className="flex-1 bg-white text-zinc-900 p-4 rounded-xl font-bold border border-zinc-200 active:scale-95 transition-transform"
               >
-                Back
+                {t.back}
               </button>
               <button 
                 id="save-customer-btn"
@@ -286,7 +431,7 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
                 disabled={!formData.productName || !formData.totalPrice}
                 className="flex-[2] bg-zinc-900 text-white p-4 rounded-xl font-bold text-lg disabled:opacity-50 active:scale-95 transition-transform"
               >
-                Save Customer
+                {t.saveCustomer}
               </button>
             </div>
           </div>
@@ -297,7 +442,8 @@ function AddCustomer({ onBack }: { onBack: () => void }) {
 }
 
 function CustomerDetails({ customer, onBack }: { customer: Customer, onBack: () => void }) {
-  const { markAsPaid } = useApp();
+  const { markAsPaid, language } = useApp();
+  const t = translations[language];
 
   return (
     <div className="min-h-screen bg-zinc-50 pb-20">
@@ -305,7 +451,7 @@ function CustomerDetails({ customer, onBack }: { customer: Customer, onBack: () 
         <button onClick={onBack} className="p-2 hover:bg-zinc-100 rounded-full">
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-xl font-bold text-zinc-900">Customer Details</h1>
+        <h1 className="text-xl font-bold text-zinc-900">{t.customerDetails}</h1>
       </div>
 
       <div className="p-4 space-y-6">
@@ -328,19 +474,19 @@ function CustomerDetails({ customer, onBack }: { customer: Customer, onBack: () 
           
           <div className="pt-4 border-t border-zinc-100 grid grid-cols-2 gap-4">
             <div>
-              <p className="text-xs text-zinc-400 uppercase font-medium">Product</p>
+              <p className="text-xs text-zinc-400 uppercase font-medium">{t.productName}</p>
               <p className="font-semibold text-zinc-800">{customer.productName}</p>
             </div>
             <div>
-              <p className="text-xs text-zinc-400 uppercase font-medium">Monthly EMI</p>
+              <p className="text-xs text-zinc-400 uppercase font-medium">{t.monthlyEmi}</p>
               <p className="font-semibold text-zinc-800">{formatCurrency(customer.emiAmount)}</p>
             </div>
             <div>
-              <p className="text-xs text-zinc-400 uppercase font-medium">Remaining</p>
+              <p className="text-xs text-zinc-400 uppercase font-medium">{t.remainingAmount}</p>
               <p className="font-bold text-orange-600">{formatCurrency(customer.remainingAmount)}</p>
             </div>
             <div>
-              <p className="text-xs text-zinc-400 uppercase font-medium">Total Price</p>
+              <p className="text-xs text-zinc-400 uppercase font-medium">{t.totalPrice}</p>
               <p className="font-semibold text-zinc-800">{formatCurrency(customer.totalPrice)}</p>
             </div>
           </div>
@@ -348,7 +494,7 @@ function CustomerDetails({ customer, onBack }: { customer: Customer, onBack: () 
 
         {/* EMI List */}
         <div className="space-y-3">
-          <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider px-1">EMI Schedule</h3>
+          <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider px-1">{t.emiSchedule}</h3>
           {customer.emis.map((emi) => (
             <div 
               key={emi.id}
@@ -364,7 +510,9 @@ function CustomerDetails({ customer, onBack }: { customer: Customer, onBack: () 
                   <p className={`font-semibold ${emi.isPaid ? 'text-emerald-700' : 'text-zinc-800'}`}>
                     {emi.month}
                   </p>
-                  <p className="text-xs text-zinc-400">{formatCurrency(emi.amount)}</p>
+                  <p className="text-xs text-zinc-400">
+                    {formatCurrency(emi.amount)} • <span className={!emi.isPaid && new Date(emi.dueDate) < new Date() ? 'text-red-500 font-medium' : ''}>Due: {new Date(emi.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  </p>
                 </div>
               </div>
               
@@ -373,11 +521,11 @@ function CustomerDetails({ customer, onBack }: { customer: Customer, onBack: () 
                   onClick={() => markAsPaid(customer.id, emi.id)}
                   className="bg-zinc-900 text-white px-4 py-2 rounded-xl text-sm font-bold active:scale-95 transition-transform"
                 >
-                  Mark Paid
+                  {t.markPaid}
                 </button>
               )}
               {emi.isPaid && (
-                <span className="text-emerald-600 text-xs font-bold uppercase">Paid</span>
+                <span className="text-emerald-600 text-xs font-bold uppercase">{t.paid}</span>
               )}
             </div>
           ))}
@@ -388,7 +536,8 @@ function CustomerDetails({ customer, onBack }: { customer: Customer, onBack: () 
 }
 
 function TodayDue({ onBack, onSelectCustomer }: { onBack: () => void, onSelectCustomer: (c: Customer) => void }) {
-  const { customers, markAsPaid } = useApp();
+  const { customers, markAsPaid, language } = useApp();
+  const t = translations[language];
   
   const dueToday = useMemo(() => {
     const today = new Date();
@@ -411,25 +560,66 @@ function TodayDue({ onBack, onSelectCustomer }: { onBack: () => void, onSelectCu
   }, [customers]);
 
   const sendReminder = (customer: Customer) => {
+    // Keep reminder in english primarily or we can mix if needed, but the prompt says 
+    // add bilingual tamil and english so we'll leave reminder as is since they need to send it explicitly via WA.
     const message = `Hi ${customer.name}, your EMI of ${formatCurrency(customer.emiAmount)} for ${customer.productName} is due. Please pay soon.`;
     const url = `https://wa.me/${customer.phone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
   };
 
+  const exportTodayDueCSV = () => {
+    const paymentRows = [];
+    paymentRows.push(['Customer Name', 'Phone', 'Product', 'EMI Month', 'Due Date', 'EMI Amount', 'Status']);
+    
+    dueToday.forEach(c => {
+      if (c.currentEmi) {
+        paymentRows.push([
+          c.name,
+          c.phone,
+          c.productName,
+          c.currentEmi.month,
+          new Date(c.currentEmi.dueDate).toLocaleDateString(),
+          c.currentEmi.amount,
+          'Pending'
+        ]);
+      }
+    });
+
+    const csvContent = paymentRows.map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `today_due_customers_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="min-h-screen bg-zinc-50 pb-20">
-      <div className="bg-white p-4 flex items-center gap-4 border-b sticky top-0 z-10">
-        <button onClick={onBack} className="p-2 hover:bg-zinc-100 rounded-full">
-          <ArrowLeft size={24} />
+      <div className="bg-white p-4 flex items-center justify-between border-b sticky top-0 z-10">
+        <div className="flex items-center gap-4">
+          <button onClick={onBack} className="p-2 hover:bg-zinc-100 rounded-full">
+            <ArrowLeft size={24} />
+          </button>
+          <h1 className="text-xl font-bold text-zinc-900">{t.todayDue}</h1>
+        </div>
+        <button 
+          onClick={exportTodayDueCSV}
+          className="p-2 text-blue-600 hover:bg-blue-50 rounded-full active:scale-95 transition-transform"
+          title="Export CSV"
+        >
+          <FileSpreadsheet size={24} />
         </button>
-        <h1 className="text-xl font-bold text-zinc-900">Today's Due</h1>
       </div>
 
       <div className="p-4 space-y-4">
         {dueToday.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
             <CheckCircle2 size={64} className="mb-4 opacity-20" />
-            <p className="text-lg font-medium">No dues for today!</p>
+            <p className="text-lg font-medium">{t.noDues}</p>
           </div>
         ) : (
           dueToday.map(c => (
@@ -437,7 +627,9 @@ function TodayDue({ onBack, onSelectCustomer }: { onBack: () => void, onSelectCu
               <div className="flex justify-between items-start">
                 <div onClick={() => onSelectCustomer(c)} className="cursor-pointer">
                   <h3 className="text-lg font-bold text-zinc-900">{c.name}</h3>
-                  <p className="text-zinc-500 text-sm">{c.productName} • {c.currentEmi?.month}</p>
+                  <p className="text-zinc-500 text-sm">
+                    {c.productName} • {c.currentEmi?.month} • Due: {c.currentEmi ? new Date(c.currentEmi.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
+                  </p>
                 </div>
                 <p className="text-xl font-bold text-orange-600">{formatCurrency(c.emiAmount)}</p>
               </div>
@@ -447,13 +639,13 @@ function TodayDue({ onBack, onSelectCustomer }: { onBack: () => void, onSelectCu
                   onClick={() => c.currentEmi && markAsPaid(c.id, c.currentEmi.id)}
                   className="flex-1 bg-emerald-500 text-white py-3 rounded-2xl font-bold text-sm active:scale-95 transition-transform"
                 >
-                  Mark Paid
+                  {t.markPaid}
                 </button>
                 <button 
                   onClick={() => sendReminder(c)}
                   className="flex-1 bg-zinc-100 text-zinc-900 py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-transform"
                 >
-                  <MessageSquare size={16} /> Reminder
+                  <MessageSquare size={16} /> {t.reminder}
                 </button>
               </div>
             </div>
@@ -465,7 +657,8 @@ function TodayDue({ onBack, onSelectCustomer }: { onBack: () => void, onSelectCu
 }
 
 function AllCustomers({ onBack, onSelectCustomer }: { onBack: () => void, onSelectCustomer: (c: Customer) => void }) {
-  const { customers } = useApp();
+  const { customers, language } = useApp();
+  const t = translations[language];
   const [search, setSearch] = useState('');
 
   const filtered = customers.filter(c => 
@@ -480,13 +673,13 @@ function AllCustomers({ onBack, onSelectCustomer }: { onBack: () => void, onSele
           <button onClick={onBack} className="p-2 hover:bg-zinc-100 rounded-full">
             <ArrowLeft size={24} />
           </button>
-          <h1 className="text-xl font-bold text-zinc-900">All Customers</h1>
+          <h1 className="text-xl font-bold text-zinc-900">{t.allCustomers}</h1>
         </div>
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
           <input 
             type="text"
-            placeholder="Search name or phone..."
+            placeholder={t.searchMsg}
             className="w-full pl-12 pr-4 py-3 rounded-2xl bg-zinc-100 border-none outline-none focus:ring-2 focus:ring-zinc-900"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -495,30 +688,37 @@ function AllCustomers({ onBack, onSelectCustomer }: { onBack: () => void, onSele
       </div>
 
       <div className="p-4 space-y-3">
-        {filtered.map(c => (
+        {filtered.map(c => {
+          const nextEmi = c.emis.find(e => !e.isPaid);
+          return (
           <div 
             key={c.id} 
             onClick={() => onSelectCustomer(c)}
             className="bg-white p-4 rounded-2xl flex items-center justify-between border border-zinc-100 active:bg-zinc-50 cursor-pointer"
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-600 font-bold text-lg">
-                {c.name[0]}
+              <div className="w-12 h-12 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-600 font-bold text-lg cursor-pointer">
+                {c.name ? c.name[0] : ''}
               </div>
               <div>
                 <h3 className="font-bold text-zinc-900">{c.name}</h3>
-                <p className="text-xs text-zinc-500">{c.productName} • {c.phone}</p>
+                <p className="text-xs text-zinc-500">
+                  {c.productName} • {c.phone} 
+                  {nextEmi && (
+                    <> • <span className={new Date(nextEmi.dueDate) < new Date() ? 'text-red-500 font-medium' : ''}>Next Due: {new Date(nextEmi.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span></>
+                  )}
+                </p>
               </div>
             </div>
             <div className="text-right">
               <p className="font-bold text-zinc-900">{formatCurrency(c.emiAmount)}/mo</p>
-              <p className="text-[10px] text-zinc-400 uppercase font-bold">Remaining: {formatCurrency(c.remainingAmount)}</p>
+              <p className="text-[10px] text-zinc-400 uppercase font-bold">{t.remainingAmount}: {formatCurrency(c.remainingAmount)}</p>
             </div>
           </div>
-        ))}
+        )})}
         {filtered.length === 0 && (
           <div className="text-center py-20 text-zinc-400">
-            <p>No customers found</p>
+            <p>{t.noCustomersFound}</p>
           </div>
         )}
       </div>

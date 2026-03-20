@@ -29,8 +29,9 @@ interface AppContextType {
   addCustomer: (customer: Customer) => void;
   markAsPaid: (customerId: string, emiId: string) => void;
   totalGiven: number;
-  totalCollected: number;
   totalPending: number;
+  language: 'en' | 'ta';
+  setLanguage: (lang: 'en' | 'ta') => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -41,9 +42,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [language, setLanguage] = useState<'en' | 'ta'>(() => {
+    return (localStorage.getItem('emi_manager_lang') as 'en' | 'ta') || 'en';
+  });
+
   useEffect(() => {
     localStorage.setItem('emi_manager_customers', JSON.stringify(customers));
   }, [customers]);
+
+  useEffect(() => {
+    localStorage.setItem('emi_manager_lang', language);
+  }, [language]);
 
   const addCustomer = (customer: Customer) => {
     setCustomers((prev) => [...prev, customer]);
@@ -60,7 +69,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return {
             ...c,
             emis: updatedEmis,
-            remainingAmount: c.totalPrice - c.downPayment - paidAmount,
+            remainingAmount: Number((c.totalPrice - c.downPayment - paidAmount).toFixed(2)),
           };
         }
         return c;
@@ -68,15 +77,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const totalGiven = customers.reduce((sum, c) => sum + (c.totalPrice - c.downPayment), 0);
-  const totalCollected = customers.reduce((sum, c) => {
+  const totalGiven = Number(customers.reduce((sum, c) => sum + (c.totalPrice - c.downPayment), 0).toFixed(2));
+  const totalCollected = Number(customers.reduce((sum, c) => {
     const paidEmis = c.emis.filter(e => e.isPaid).reduce((s, e) => s + e.amount, 0);
     return sum + paidEmis;
-  }, 0);
-  const totalPending = totalGiven - totalCollected;
+  }, 0).toFixed(2));
+  const totalPending = Number((totalGiven - totalCollected).toFixed(2));
 
   return (
-    <AppContext.Provider value={{ customers, addCustomer, markAsPaid, totalGiven, totalCollected, totalPending }}>
+    <AppContext.Provider value={{ customers, addCustomer, markAsPaid, totalGiven, totalCollected, totalPending, language, setLanguage }}>
       {children}
     </AppContext.Provider>
   );
