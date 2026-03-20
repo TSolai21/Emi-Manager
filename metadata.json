@@ -1,0 +1,5 @@
+{
+  "name": "EMI Manager",
+  "description": "A simple EMI management app for small businesses to track customers, products, and payments.",
+  "requestFramePermissions": []
+}
